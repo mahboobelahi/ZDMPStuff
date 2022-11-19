@@ -1,0 +1,54 @@
+{
+    "name": "FASTory Energy Consumption Pattern Recognizer",
+    "description": "ANN model to predict FASTory Assembly line's belt tension Class",
+    "tags": ["Conveyor-Belt","Belt Tension","AI","Pattern Recognizer","ANN"],
+    "input": {
+		"prediction": [
+			{
+				"type": "MESSAGE_BUS",
+				"payload": {
+					"routingKeys": 
+					[
+						{
+							"exchange": "amq.topic",
+							"name":"T5_1-Data-Acquisition.DataSource ID: 104EM - MultiTopic.Measurements.belt-tension-class-pred"
+							
+						}
+					]
+				}
+			}
+		]
+    },
+    "output": {
+		"prediction": [
+			{
+				"type": "MESSAGE_BUS",
+				"payload": {
+					"routingKeys": 
+					[
+						{
+							"name":"T5_6-AI-Analytics-Run-time.TAU.FASTory_BT"
+						}
+					]
+				}
+			}
+		]
+    },
+    "modelData": {
+        "type": "PYTHON",
+        "payload": {
+			"dependencies": [
+				{
+					"name": "tensorflow",
+					"version": "2.7.0"
+				},
+				{
+					"name": "numpy"
+				}
+				
+			
+			]
+			
+        }
+    }
+}

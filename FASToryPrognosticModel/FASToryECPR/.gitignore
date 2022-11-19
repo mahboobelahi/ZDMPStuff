@@ -1,0 +1,7 @@
+*.png
+.FASTory
+*.pyc
+.__pycache__/
+.idea/
+.report/
+.txt

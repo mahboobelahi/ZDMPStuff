@@ -1,0 +1,2 @@
+https://savjee.be/2019/07/Home-Energy-Monitor-ESP32-CT-Sensor-Emonlib/
+https://learn.openenergymonitor.org/electricity-monitoring/ac-power-theory/introduction

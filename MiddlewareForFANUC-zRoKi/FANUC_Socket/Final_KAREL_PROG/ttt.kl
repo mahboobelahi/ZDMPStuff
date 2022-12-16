@@ -1,0 +1,130 @@
+PROGRAM zTCPserver3
+----------------------------------------------------
+-- CReation date: 2021.11.01
+-- CReated by: ME
+----------------------------------------------------
+-- Version: V1
+----------------------------------------------------
+-- Function: 
+----------------------------------------------------
+-- Last modified: 2021.11.01
+-- Last modified by: ME                             
+----------------------------------------------------
+%COMMENT = 'zTCP_Socket_Server'
+%ALPHABETIZE
+%STACKSIZE = 4000
+%NOLOCKGROUP
+%ENVIRONMENT UIF
+--%ENVIRONMENT PBCORE
+%ENVIRONMENT SYSDEF
+%ENVIRONMENT MEMO
+%ENVIRONMENT KCLOP
+%ENVIRONMENT BYNAM
+%ENVIRONMENT FDEV
+%ENVIRONMENT FLBT
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%INCLUDE KLEVKEYS
+%INCLUDE KLEVKMSK
+%INCLUDE KLEVCCDF
+%INCLUDE KLIOUOP
+%INCLUDE KLIOTYPS
+
+----------------------------------------------------
+CONST
+    SUCCESS = 0 --success constatnt
+
+VAR
+        file_var : FILE -- handls File I/O operation  	
+		fileIO : INTEGER -- shows STATUS of File operation 
+		STATUS : INTEGER -- shiws STATUS for other operations		
+		btyeAvailabl : INTEGER -- shows remanining bytes in read buffer
+        data_type, int_value, conv_type, open_id, ufram_no, utool_no, entry, i: INTEGER
+
+        group_no: INTEGER                       -- The group number of the current position setting.
+        uframe_str, utool_str: STRING[32]       -- String used to pull the frame positions from the system varibles.
+        from_prog: STRING[32]                   -- TP program name to be copied FROM
+        ufram_no_str, utool_no_str : STRING[2]  -- Used to get the frame varible
+        uframe, utool : POSITION                -- Current frame and tool of the point being converted
+
+
+
+----------------------------------------------------
+-- BEGIN TCPserver-3                             
+----------------------------------------------------
+BEGIN
+    --Clear and home user screen.
+	WRITE(CHR(128))
+	WRITE(CHR(137))
+	-- clear the TPERROR screen
+	WRITE TPERROR(CHR(128))
+    --TCP-Socket Server initialization
+    -- Set up S3 server tag
+    -- setting file with read ahead attribute rather than Interactive mode
+    -- dismount previously opened/used Server file
+    DISMOUNT_DEV('S3:',STATUS)
+    WRITE ('[X1] Dis-Mount STATUS = ',STATUS,CR)
+    MOUNT_DEV('S3:',STATUS)
+    WRITE ('[X2] Mount STATUS = ',STATUS,CR)	
+    SET_FILE_ATR(file_var, ATR_READAHD)--ATR_IA
+    --SET THE SERVER PORT BEFORE DOING A CONNECT
+	SET_VAR(btyeAvailabl, '*SYSTEM*', '$HOSTS_CFG[3].$SERVER_PORT', 1162, STATUS)
+
+    IF STATUS =  SUCCESS THEN
+        -- Connect the tag
+        WRITE ('[X3] Connecting ...',CR)
+        MSG_CONNECT ('S3:',STATUS)
+        WRITE ('[X4] Connect STATUS = ',STATUS,CR)
+        IF STATUS<>  SUCCESS THEN
+            WRITE ('[X5] Dis-Connecting...',CR)
+            WRITE ('[X6] Dis-Connect: ',STATUS,CR)
+            MSG_DISCO('S3:',STATUS)
+            WRITE ('[X7] Connecting...',CR)
+            --if client disconnected then control jumps to that lable
+             wait_4_Conn::
+            MSG_CONNECT('S3:',STATUS)--blocking statement
+            WRITE ('[X8] Connect STATUS = ',STATUS,CR)
+        ENDIF
+--    ELSE
+--         DISMOUNT_DEV('S3:',STATUS)
+--         WRITE ('[X] Dis-Mount STATUS = ',STATUS,CR)
+--         --WRITE('Closed file.', fileIO,CR) --IO_STATUS(dataFile)
+--         MSG_DISCO('S3:',STATUS)
+    ENDIF
+    -- If connected to client open file and
+    -- start sending data
+    IF STATUS =  SUCCESS THEN
+        -- OPEN S3:
+        WRITE ('[X9] Opening',CR)
+        OPEN FILE file_var ('RW','S3:')
+        fileIO = IO_STATUS(file_var)
+        WRITE('[X10] File_IO_STATUS=',fileIO,CR)
+        --is open file a success
+        IF fileIO = SUCCESS THEN
+            WRITE('[X11]',fileIO,CR)
+            --send_it::
+            --extract U/T frame data
+            OPEN_TPE('zSndPOSdata', TPE_RWACC, TPE_RDREJ, open_id, STATUS)
+            IF STATUS = SUCCESS THEN
+                WRITE('[X12] ',open_id,CR)
+                GET_POS_FRM(open_id, 100, group_no, ufram_no, utool_no, STATUS)
+                WRITE file_var(ufram_no, utool_no,CR)
+                GOTO Not_Success
+
+            ENDIF
+        ENDIF
+    ENDIF    
+    -- if file operation not a success close file and Disconnect server
+    IF fileIO <>  SUCCESS THEN
+        FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+        WRITE ('[X13] File operation is not a success...', CR)
+        WRITE ('[X14] Disconnecting Server.', CR)
+        WRITE ('[X15] Closing Dismounting File...', CR)
+        Not_Success::
+        DISMOUNT_DEV('S3:',STATUS)
+        CLOSE FILE file_var
+        WRITE('[X16] Closed file.', fileIO,CR) --IO_STATUS(dataFile)
+        MSG_DISCO('S3:',STATUS)
+        GOTO wait_4_Conn
+    ENDIF
+
+END zTCPserver3

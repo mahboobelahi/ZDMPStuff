@@ -1,0 +1,97 @@
+PROGRAM z_Orchstrate
+----------------------------------------------------
+-- Creation date: 2021.11.03
+-- Created by: ME
+----------------------------------------------------
+-- Version: V1
+----------------------------------------------------
+-- Function: Will orchestrate KAREL/TP/MACRO as per middleware app request
+----------------------------------------------------
+-- Last modified: 2021.11.03
+-- Last modified by: ME                             
+----------------------------------------------------
+
+%NOLOCKGROUP
+%COMMENT = 'zOrchestartor'
+%NOABORT=ERROR+COMMAND
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ALPHABETIZE
+%ENVIRONMENT MULTI
+%ENVIRONMENT REGOPE
+%INCLUDE KLEVKEYS
+%INCLUDE KLEVKMSK
+%INCLUDE KLEVCCDF
+%INCLUDE KLIOUOP
+%INCLUDE KLIOTYPS
+
+CONST
+--Task orchestration IDs 
+    strt_SM_Srvr = 200
+    Snap_Req = 199 
+    New_zRokiPOS = 198
+    SUCCESS = 0
+VAR
+    HTTP_res_var : FILE --HTTP Response File name
+    HTTP_Res: STRING[20] 
+    CMD: STRING[20]
+    prog_name: STRING[20]
+    trig_CMD: INTEGER--STRING[20]
+    status: INTEGER
+
+----------------------------------------------------
+-- BEGIN zORCHESTRATE                             
+----------------------------------------------------
+ROUTINE cmd_stat (rec_stat: INTEGER; cmd: STRING)
+BEGIN
+ IF (rec_stat <> SUCCESS) THEN   -- if rec_stat is not SUCCESS
+     -- then post the error
+     --Clear user and home user screen.
+      WRITE(CHR(128))
+      WRITE(CHR(137))
+      --Force the user screen.
+      --FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+      WRITE ('[X] Aborting! '+cmd+' command failed!',CR)
+      --ABORT
+ ENDIF
+END cmd_stat
+
+BEGIN
+    -- clear the TPERROR screen
+	--FORCE_SPMENU(TP_PANEL,SPI_TPUSER,1)
+	WRITE(CHR(137),CHR(128))
+	WRITE TPERROR(CHR(128))
+    WRITE('[X] Waiting for HTTP Req...',CR)
+        --set file for HTTP response
+    IF UNINIT(HTTP_Res) THEN
+        HTTP_Res='TD:RESPONSE.HTM'
+        WRITE ('[X] INSIDE',CR)
+    ENDIF
+
+    WRITE ('[X] Openign File...',CR)    
+    OPEN FILE HTTP_res_var ('RW', HTTP_Res)
+    WRITE HTTP_res_var ('[X] OK',CR)
+    WRITE HTTP_res_var ('[X] Operation is SUCCESSFULL',CR)
+    --WRITE HTTP_res_var ('[X]--- Task '+prog_name+' ABORTED:',STATUS,CR)
+    CNV_STR_INT(CMD,trig_CMD)
+    --WRITE HTTP_res_var (trig_CMD,CR)
+    SELECT trig_CMD OF
+        CASE (strt_SM_Srvr):
+            SET_INT_REG(strt_SM_Srvr, 1, status) --BG-logic for SM server      
+        CASE (Snap_Req):
+            SET_INT_REG(Snap_Req, 1, status)--BG-logic for SNAP work space
+        CASE (New_zRokiPOS):
+            SET_INT_REG(New_zRokiPOS, 1, status) --BG-logic for new incomming zRoki-POS
+        ELSE:
+            WRITE HTTP_res_var ('[X] In siode ELSE...',CR)
+    ENDSELECT
+
+    IF  NOT UNINIT(prog_name) THEN
+        ABORT_TASK(prog_name, True, True, STATUS)
+        WRITE HTTP_res_var ('[X] Task '+prog_name+' ABORTED:',STATUS,CR)
+    ENDIF
+
+    WRITE HTTP_res_var ('[X] Closing File...',CR)
+    CLOSE FILE HTTP_res_var 
+    
+    --SET_INT_REG(strt_SM_Srvr, 1, status)
+END z_Orchstrate

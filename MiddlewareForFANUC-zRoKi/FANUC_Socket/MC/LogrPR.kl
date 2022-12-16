@@ -1,0 +1,60 @@
+PROGRAM LoggerPR
+%STACKSIZE = 4000
+%ENVIRONMENT CVIS
+%ALPHABETIZE
+%COMMENT = 'POS_REG Logger'
+%NOLOCKGROUP
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ENVIRONMENT REGOPE
+
+
+---------------------------------------------------------------------------------------------------------------
+--DECLARACION DE VARIABLES
+CONST
+	cc_xyzwpr = 2
+	cc_jntpos = 9
+
+VAR
+    logFile     : FILE
+    prmPosregId : INTEGER
+    prmLogFile  : STRING[16]
+    dataType    : INTEGER
+    status      : INTEGER
+    intVal      : INTEGER
+    realVal     : REAL
+    strVal      : STRING[1]
+    posreg      : XYZWPR
+    num_axes,pos_type : INTEGER
+
+BEGIN
+
+	WRITE TPERROR(CHR(128))
+	GET_TPE_PRM(1, dataType, prmPosregId, realVal, strVal, status)
+	IF status<>0 THEN
+	  WRITE TPERROR('[logpr] could not get tpe prm', CR)
+	  ABORT
+	ENDIF
+	POS_REG_TYPE(prmPosregId,1,pos_type,num_axes,status)
+	--WRITE(pos_type,CR)
+	
+	IF status<>0 THEN
+	    WRITE TPERROR('[logpr] could not get PR', prmPosregId, CR)
+	    ABORT
+	ENDIF
+	posreg = GET_POS_REG(prmPosregId, status)
+	IF UNINIT(posreg) THEN
+	    WRITE TPERROR('[logpr] PR', prmPosregId, 'is UNINIT', CR)
+	    ABORT
+	ENDIF
+		WRITE  (
+		    prmPosregId, ',',
+		    posreg.x::9::2, ',',
+		    posreg.y::9::2, ',',
+		    posreg.z::9::2, ',',
+		    posreg.w::9::2, ',',
+		    posreg.p::9::2, ',',
+		    posreg.r::9::2, CR)	
+END LoggerPR
+
+
+

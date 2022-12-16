@@ -1,0 +1,242 @@
+PROGRAM POSCONV
+%COMMENT = 'Pos Convert V1.1'
+%NOPAUSE = ERROR + COMMAND + TPENABLE
+%NOLOCKGROUP
+
+--------------------------------------------------------------------------
+--POSCONV
+--
+--Description:
+--  This program converts all points in a program from joint
+--  representation to xyzwpr representation.
+--
+--How to use:
+--  This program should be called from a teach pendant program.
+--  When called it should be passed 3 arguments, none of which are
+--  optional.
+--  Argument 1 : Change mode, should be an integer 1-3
+--               Mode 1 : All points to Joint representation
+--               Mode 2 : All points to XYZWPR representation
+--               Mode 3 : All Joint to XYZWPR, and all XYZWPR to Joint
+--  Argument 2 : Source program to convert. Should be a string.
+--  Argument 3 : Destination program. Should not exist. Should be a string.
+--
+--------------------------------------------------------------------------
+
+CONST
+  ER_WARN = 0                           -- warning constant for use in POST_ERR
+  SUCCESS = 0                           -- success constant
+  JNT_POS = 9                           -- constant for GET_POS_TYP
+  XYZ_POS = 2                           -- constant for GET_POS_TYP
+  MAX_AXS = 9                           -- Maximum number of axes JOINTPOS has
+VAR
+STATUS, data_type, int_value, conv_type, open_id, ufram_no, utool_no, entry, i: INTEGER
+pos_typ : INTEGER                       -- The type of position returned from GET_POS_TYP
+num_axs : INTEGER                       -- The number of axes if position is a JOINTPOS type
+indx_pos: INTEGER                       -- FOR loop counter, that increments through TP position
+group_no: INTEGER                       -- The group number of the current position setting.
+num_pos : INTEGER                       -- The next available position number within TP program
+over_sw: BOOLEAN                        -- Switch that controls wether to allow the overwrite of the 'to' program
+uframe_str, utool_str: STRING[32]       -- String used to pull the frame positions from the system varibles.
+real_value: REAL                        -- Used only for the GET_TPE_PRM command
+str_value : STRING[32]                  -- Used only for the GET_TPE_PRM command
+from_prog: STRING[32]                   -- TP program name to be copied FROM
+to_prog  : STRING[32]                   -- TP program name to be copied TO
+jpos : JOINTPOS                         -- Temp storage var used in conversion
+lpos : XYZWPR                           -- Temp storage var used in conversion
+ufram_no_str, utool_no_str : STRING[2]  -- Used to get the frame varible
+uframe, utool : POSITION                -- Current frame and tool of the point being converted
+ext_ang : ARRAY [9] OF REAL
+
+ROUTINE cmd_stat (rec_stat: INTEGER; cmd: STRING)
+BEGIN
+ IF (rec_stat <> SUCCESS) THEN   -- if rec_stat is not SUCCESS
+     -- then post the error
+     --Clear and home user screen.
+      WRITE(CHR(128))
+      WRITE(CHR(137))
+      --Force the user screen.
+      FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+      WRITE ('Aborting! '+cmd+' command failed!',CR)
+      ABORT
+ ENDIF
+END cmd_stat
+
+BEGIN
+
+--Get the first argument passed, the type of conversion to do.
+--Should be an int from 1-3.
+GET_TPE_PRM(1, data_type, int_value, real_value, str_value, STATUS)
+--Validate what was passed.
+IF (data_type=1) AND (STATUS=0) THEN
+  --Argument is an int.
+  IF (int_value<1) OR (int_value>3) THEN
+    --Invalid argument 2, not in range.
+    --Clear and home user screen.
+    WRITE(CHR(128))
+    WRITE(CHR(137))
+    --Force the user screen.
+    FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+    WRITE('Invalid Argument 1. Must be an integer.',CR)
+    WRITE('Valid Arguments are: 1 to 3',CR)
+    WRITE('Mode 1: Convert all to JPOS',CR)
+    WRITE('Mode 2: Convert all to LPOS',CR)
+    WRITE('Mode 3: Convert LPOS to JPOS',CR)
+    WRITE('and JPOS to LPOS',CR)
+    ABORT
+  ENDIF
+  --Argument 2 is ok.
+  conv_type=int_value
+ELSE
+  --Invalid argument 2, not an integer, or the GET_TPE_PRM failed.
+  --Clear and home user screen.
+  WRITE(CHR(128))
+  WRITE(CHR(137))
+  --Force the user screen.
+  FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+  WRITE('Invalid Argument 1. Must be an integer.',CR)
+  WRITE('Valid Arguments are: 1 to 3',CR)
+  WRITE('Mode 1: Convert all to JPOS',CR)
+  WRITE('Mode 2: Convert all to LPOS',CR)
+  WRITE('Mode 3: Convert LPOS to JPOS',CR)
+  WRITE('and JPOS to LPOS',CR)
+  ABORT
+ENDIF
+
+--Get the second argument passed.
+--Should be a string for the source program
+GET_TPE_PRM(2, data_type, int_value, real_value, str_value, STATUS)
+--Validate what was passed.
+IF (data_type=3) AND (STATUS=0) THEN
+  --Argument is a string.
+  from_prog=str_value;
+ELSE
+  --Invalid argument 2, not a string, or the GET_TPE_PRM  failed.
+  --Clear and home user screen.
+  WRITE(CHR(128))
+  WRITE(CHR(137))
+  --Force the user screen.
+  FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+  WRITE('Invalid Argument 2. Must be a string.',CR)
+  WRITE('This is the source program.',CR)
+  ABORT
+ENDIF
+
+--Get the third argument passed.
+--Should be a string for the to program.
+GET_TPE_PRM(3, data_type, int_value, real_value, str_value, STATUS)
+--Validate what was passed.
+IF (data_type=3) AND (STATUS=0) THEN
+  --Argument is a string.
+  to_prog=str_value;
+ELSE
+  --Invalid argument 3, not a string, or the GET_TPE_PRM  failed.
+  --Clear and home user screen.
+  WRITE(CHR(128))
+  WRITE(CHR(137))
+  --Force the user screen.
+  FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+  WRITE('Invalid Argument 3. Must be a string.',CR)
+  WRITE('This is the to program.',CR)
+  ABORT
+ENDIF
+
+--Don't allow the user to overwrite an existing program.
+over_sw=FALSE
+COPY_TPE (from_prog, to_prog, over_sw, STATUS)
+---  If the status returned is 7015, "program already exist",
+---  then quit the program.  This will mean not altering the already
+---  existing to_prog.
+IF (STATUS = 7015) THEN
+    --Clear and home user screen.
+    WRITE(CHR(128))
+    WRITE(CHR(137))
+    --Force the user screen.
+    FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+    WRITE ('---Aborting! To program already exists!',CR)
+    ABORT
+ELSE
+	
+  IF (STATUS = 0) THEN
+  	
+    --Program copied successfully.
+    OPEN_TPE(to_prog, TPE_RWACC, TPE_RDREJ, open_id, STATUS)
+    cmd_stat(STATUS,'OPEN_TPE')
+    group_no = 1
+    --assume the program has less than 10000 points.
+    num_pos = 10000
+    
+    FOR indx_pos = 1 TO num_pos-1 DO
+      --Get the DATA TYPE of each position within the to_prog
+      --If it is a JOINTPOS also get the number of axes.
+      GET_POS_TYP (open_id, indx_pos, group_no, pos_typ, num_axs, STATUS)
+      WRITE(CR,open_id, indx_pos, group_no, STATUS,CR)
+      IF (STATUS = 0) THEN
+        --point exists
+        --get utool and uframe data current point
+        GET_POS_FRM(open_id, indx_pos, group_no, ufram_no, utool_no, STATUS)
+        cmd_stat(STATUS,'GET_POS_FRM')
+        WRITE('U_F/T: ', indx_pos ,CR)
+        WRITE('U_F/T: ',ufram_no, utool_no ,CR)
+        --get the uframe
+        CNV_INT_STR(ufram_no, 1, 0, ufram_no_str)
+        uframe_str='$MNUFRAME[1,'+ufram_no_str+']'
+        WRITE('uframe_str: ',uframe_str ,CR)
+        GET_VAR(entry, '*SYSTEM*', uframe_str, uframe, STATUS)
+        cmd_stat(STATUS,'GET_VAR')
+        WRITE('uframe_: ',uframe ,CR)
+         SET_VAR(entry,'*SYSTEM*','$GROUP[1].$UFRAME',uframe,STATUS)
+         cmd_stat(STATUS,'SET_VAR-UFRAME')
+        --get the utool
+        CNV_INT_STR(utool_no, 1, 0, utool_no_str)
+        utool_str='$MNUTOOL[1,'+utool_no_str+']'
+        GET_VAR(entry, '*SYSTEM*', utool_str, utool, STATUS)
+        cmd_stat(STATUS,'GET_VAR')
+        SET_VAR(entry,'*SYSTEM*','$GROUP[1].$UTOOL',utool,STATUS)
+        
+        --see what the user wanted us to do.
+        IF ((pos_typ=XYZ_POS) AND ((conv_type=1) OR (conv_type=3))) THEN
+          --point is a LPOS, convert to JPOS.
+          lpos = GET_POS_TPE (open_id , indx_pos, STATUS)
+          cmd_stat(STATUS,'GET_POS_TPE')
+          jpos=lpos
+          SET_JPOS_TPE (open_id, indx_pos, jpos, STATUS)
+          cmd_stat(STATUS,'SET_JPOS_TPE')
+        ENDIF
+        IF ((pos_typ=JNT_POS) AND ((conv_type=2) OR (conv_type=3))) THEN
+          --point is a JPOS, convert to LPOS.
+          jpos = GET_JPOS_TPE (open_id, indx_pos, STATUS)
+          cmd_stat(STATUS,'GET_JPOS_TPE')
+          lpos=jpos
+          SET_POS_TPE (open_id, indx_pos, lpos, STATUS)
+          cmd_stat(STATUS,'SET_POS_TPE')
+        ENDIF
+      ENDIF
+    ENDFOR
+  ELSE
+  --check if the COPY_TPE failed because the to program already exists.
+  IF (STATUS = 7015) THEN
+    --Clear and home user screen.
+    WRITE(CHR(128))
+    WRITE(CHR(137))
+    --Force the user screen.
+    FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+    WRITE ('Aborting! To program already exists!',CR)
+    ABORT
+  ENDIF
+  --check if the COPY_TPE failed because it can't find the source program.
+  IF (STATUS = 7073) THEN
+    --Clear and home user screen.
+    WRITE(CHR(128))
+    WRITE(CHR(137))
+    --Force the user screen.
+    FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+    WRITE ('Aborting! Can not find source program!',CR)
+    ABORT
+  ENDIF
+  --COPY_TPE failed for some other reason
+  cmd_stat(STATUS,'COPY_TPE')
+  ENDIF
+ENDIF
+
+END POSCONV

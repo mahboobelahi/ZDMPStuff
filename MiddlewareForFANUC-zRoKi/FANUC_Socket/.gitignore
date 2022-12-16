@@ -1,0 +1,6 @@
+*.png
+.Rob_ven
+*.pyc
+.__pycache__/
+.idea/
+socket_data.txt

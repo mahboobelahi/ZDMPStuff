@@ -1,0 +1,197 @@
+PROGRAM test_send
+%STACKSIZE = 4000
+%ALPHABETIZE
+%COMMENT = 'Send Pos_REG to socket Client'
+%NOLOCKGROUP
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ENVIRONMENT uif
+--%ENVIRONMENT CVIS
+%ENVIRONMENT sysdef
+%ENVIRONMENT memo
+%ENVIRONMENT kclop
+%ENVIRONMENT bynam
+%ENVIRONMENT fdev
+%ENVIRONMENT flbt
+%ENVIRONMENT REGOPE
+%INCLUDE klevccdf
+%INCLUDE klevkeys
+%INCLUDE klevkmsk
+
+---------------------------------------------------------------------------------------------------------------
+--DECLARACION DE VARIABLES
+CONST
+	cc_xyzwpr = 2
+	cc_jntpos = 9
+
+VAR
+    logFile     : FILE
+    prmPosregId : INTEGER
+    prmLogFile  : STRING[16]
+    dataType    : INTEGER
+    --status      : INTEGER
+    intVal      : INTEGER
+    realVal     : REAL
+    strVal      : STRING[1]
+    posreg      : XYZWPR
+    num_axes,pos_type : INTEGER
+    		dataFile : FILE
+		fileIO : INTEGER
+		msgStr : STRING[128]
+		msgStr1 : STRING[128]
+		status : INTEGER
+		btyeAvailabl : INTEGER
+		loop1 : BOOLEAN
+		indx_pos : INTEGER
+    
+BEGIN
+	---------------------------------------------
+		-- clear the TPERROR screen
+	--FORCE_SPMENU(TP_PANEL,SPI_TPUSER,1)
+	WRITE(CHR(137),CHR(128))
+	WRITE TPERROR(CHR(128))
+	--WRITE(CURPOS(0,0)) --robot's TCP current position relative to active UFRAME 
+	--ABORT
+	--WRITE(CR)
+	WRITE('1-DISCONNECTING...',CR)
+	MSG_DISCO('S3:',status)
+	WRITE('DONE .',status,CR)
+	SET_FILE_ATR(dataFile, ATR_READAHD)--ATR_IA
+	--SET THE SERVER PORT BEFORE DOING A CONNECT
+	SET_VAR(btyeAvailabl, '*SYSTEM*', '$HOSTS_CFG[3].$SERVER_PORT', 1162, status)
+	WRITE('1-CONNECTING..',CR)
+	--OPEN CONNECTION
+	MSG_CONNECT('S3:', status)
+	WRITE(' CONNECT status= ',status,CR)
+	loop1 = TRUE
+	--connectted or not 
+	IF status = 0 THEN
+		WRITE('Opening File...',CR)
+		OPEN FILE dataFile ('RW','S3:')
+		fileIO = IO_STATUS(dataFile)
+		WRITE('File_IO_status=',fileIO,CR)
+		--send msg to client
+		--msgStr = 'Hello, Py Client!'
+		--WRITE dataFile(msgStr)
+		--WRITE('Wrote: ',msgStr,CR)
+		--WRITE('Waiting to read from client...',CR) 
+		--FILE OPEN is success OR NOT
+		IF fileIO = 0 THEN
+						BYTES_AHEAD( dataFile, btyeAvailabl,status)
+				--WRITE('>>>status',status,CR)
+					IF (NOT UNINIT (btyeAvailabl)) THEN
+						IF (btyeAvailabl >= 1) THEN
+							WRITE('Available bytes: ',btyeAvailabl,'_bytes',CR)
+							--WRITE('status',status,CR)
+							WRITE('READING...',CR)
+							READ dataFile (msgStr1::btyeAvailabl)
+							fileIO = IO_STATUS(dataFile)
+							--WRITE('Read status: ',fileIO,CR)
+							WRITE('Read: ',msgStr1,CR)
+							ABORT
+							ENDIF
+							ENDIF
+			--WHILE loop1 = TRUE DO
+-----------------------------------------------------------------
+	WRITE TPERROR(CHR(128))
+	--GET_TPE_PRM(1, dataType, prmPosregId, realVal, strVal, status)
+	send_it::
+	FOR prmPosregId =11 TO 20 DO
+	
+	IF status<>0 THEN
+	  WRITE TPERROR('[logpr] could not get tpe prm', CR)
+	  ABORT
+	ENDIF
+	POS_REG_TYPE(prmPosregId,1,pos_type,num_axes,status)
+	WRITE('PR_ID: ',prmPosregId ,CR)
+	
+	IF status<>0 THEN
+	    WRITE TPERROR('[logpr] could not get PR', prmPosregId, CR)
+	    ABORT
+	ENDIF
+	posreg = GET_POS_REG(prmPosregId, status)
+	IF UNINIT(posreg) THEN
+	    WRITE TPERROR('[logpr] PR', prmPosregId, 'is UNINIT', CR)
+	    ABORT
+	ENDIF
+	--send_it::
+		WRITE  dataFile(
+		    prmPosregId, ',',
+		    posreg.x::9::2, ',',
+		    posreg.y::9::2, ',',
+		    posreg.z::9::2, ',',
+		    posreg.w::9::2, ',',
+		    posreg.p::9::2, ',',
+		    posreg.r::9::2, CR)
+		    		--WRITE dataFile(msgStr)
+-----------------------------------------------------------------
+				--reading FROM client
+				--BYTES_AHEAD( dataFile, btyeAvailabl,status)
+				----WRITE('>>>status',status,CR)
+					--IF (NOT UNINIT (btyeAvailabl)) THEN
+						--IF (btyeAvailabl >= 1) THEN
+							--WRITE('Available bytes: ',btyeAvailabl,'_bytes',CR)
+							----WRITE('status',status,CR)
+							--WRITE('READING...',CR)
+							--
+							--READ dataFile (msgStr1::btyeAvailabl)
+							--fileIO = IO_STATUS(dataFile)
+							----WRITE('Read status: ',fileIO,CR)
+							--WRITE('Read: ',msgStr1,CR)
+						--ELSE
+							--CLOSE FILE dataFile
+							--WRITE('DISCONNECTING...',CR)
+							--MSG_DISCO('S3:',status)
+							----OPEN CONNECTION
+							--MSG_CONNECT('S3:', status)
+							--IF status = 0 THEN
+								--OPEN FILE dataFile ('RW','S3:')
+								----GOTO send_it
+								----WRITE dataFile(msgStr)
+							--ENDIF
+						--ENDIF
+					--ENDIF		
+				DELAY 200
+				--ENDWHILE	
+	ENDFOR
+
+			CLOSE FILE dataFile
+			WRITE('Closed file.', IO_STATUS(dataFile),CR)
+			WRITE('Closed file.',CR)
+			--WRITE  dataFile(' ',CR)
+			--CLOSE FILE dataFile
+			MSG_DISCO('S3:',status)
+			ELSE
+				WRITE('Error opening file',CR)
+				loop1 = FALSE
+	ENDIF
+	ENDIF
+
+			--OPEN CONNECTION
+			MSG_CONNECT('S3:', status)
+			WRITE('CON: ', status,CR)
+			IF status = 0 THEN
+				OPEN FILE dataFile ('RW','S3:')
+				GOTO send_it
+			ENDIF 
+------------------------------------------------------------
+	
+
+	--OPEN FILE logFile ('AP', prmLogFile)
+		--WRITE  (
+		    --prmPosregId, ',',
+		    --posreg.x::9::2, ',',
+		    --posreg.y::9::2, ',',
+		    --posreg.z::9::2, ',',
+		    --posreg.w::9::2, ',',
+		    --posreg.p::9::2, ',',
+		    --posreg.r::9::2, CR)
+	--status = IO_STATUS(logFile)
+	--IF status<>0 THEN
+	    --WRITE TPERROR('[logpr] error writing to logFile', status, CR)
+	    --ABORT
+	--ENDIF
+	    --CLOSE FILE logFile
+END test_send
+
+
+

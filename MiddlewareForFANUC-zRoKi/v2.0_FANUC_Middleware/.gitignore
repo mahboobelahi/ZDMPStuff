@@ -1,0 +1,11 @@
+*.png
+*.pickForDiego
+*.venv/
+*.vscode/
+*.pyc
+.__pycache__/
+.FANUC/files/
+.idea/
+*.TP
+*.zip
+*.mp4

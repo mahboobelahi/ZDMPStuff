@@ -1,0 +1,58 @@
+PROGRAM Z_SM_Server
+----------------------------------------------------
+-- Creation date: 2021.11.01
+-- Created by: ME
+----------------------------------------------------
+-- Version: v1.1
+-- Modified from: HTTP1-MC
+----------------------------------------------------
+-- Function: 
+----------------------------------------------------
+-- Last modified: 2021.11.03
+-- Last modified by: ME                              
+------------
+----------------------------------------
+%NOLOCKGROUP
+%COMMENT = 'Middleware call it to run SM server'
+%NOABORT=ERROR+COMMAND
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ALPHABETIZE
+%INCLUDE KLEVKEYS
+%INCLUDE KLEVKMSK
+%INCLUDE KLEVCCDF
+%INCLUDE KLIOUOP
+%INCLUDE KLIOTYPS
+
+CONST
+    strt_SM_Srvr = 199
+VAR
+    HTTP_res_var : FILE --HTTP Response File name
+    HTTP_Res: STRING[20] 
+    status: INTEGER
+----------------------------------------------------
+-- BEGIN MyProgram                             
+----------------------------------------------------
+
+BEGIN
+    -- clear the TPERROR screen
+	--FORCE_SPMENU(TP_PANEL,SPI_TPUSER,1)
+	WRITE(CHR(137),CHR(128))
+	WRITE TPERROR(CHR(128))
+    WRITE('Waiting for HTTP Req...',CR)
+    --set file for HTTP response
+    IF UNINIT(HTTP_Res) THEN
+        HTTP_Res='TD:RESPONSE.HTM'
+        WRITE('[X] INSIDE',CR)
+    ENDIF
+
+    WRITE('[X] Openign File...',CR)    
+    OPEN FILE HTTP_res_var ('RW', HTTP_Res)
+    SET_INT_REG(strt_SM_Srvr, 1, status)
+     
+    WRITE HTTP_res_var ('[X] OK',status,CR)
+    WRITE HTTP_res_var ('[X] Operation is SUCCESSFULL',CR)
+    WRITE HTTP_res_var ('[X] Closing File...',CR)
+    CLOSE FILE HTTP_res_var 
+    
+
+END Z_SM_Server

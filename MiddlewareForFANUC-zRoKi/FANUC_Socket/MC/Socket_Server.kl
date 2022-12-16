@@ -1,0 +1,92 @@
+PROGRAM  SM_Server
+
+%STACKSIZE = 4000
+%COMMENT =  'Socket Serverr'
+%NOLOCKGROUP
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ENVIRONMENT uif
+%ENVIRONMENT sysdef
+%ENVIRONMENT memo
+%ENVIRONMENT kclop
+%ENVIRONMENT bynam
+%ENVIRONMENT fdev
+%ENVIRONMENT flbt
+%INCLUDE klevccdf
+%INCLUDE klevkeys
+%INCLUDE klevkmsk
+---------------------------------------------------------------------------------------------------------------
+--DECLARACION DE VARIABLES
+	VAR
+		dataFile : FILE
+		fileIO : INTEGER
+		msgStr : STRING[128]
+		msgStr1 : STRING[128]
+		status : INTEGER
+		btyeAvailabl : INTEGER
+		loop1 : BOOLEAN
+---------------------------------------------------------------------------------------------------------------
+
+
+BEGIN
+	-- clear the TPERROR screen
+	WRITE TPERROR(CHR(128))
+	--WRITE(CR)
+	WRITE('DISCONNECTING...',CR)
+	MSG_DISCO('S3:',status)
+	WRITE('DONE .',status,CR)
+	SET_FILE_ATR(dataFile, ATR_READAHD)--ATR_IA
+	--SET THE SERVER PORT BEFORE DOING A CONNECT
+	SET_VAR(btyeAvailabl, '*SYSTEM*', '$HOSTS_CFG[3].$SERVER_PORT', 1162, status)
+	WRITE('CONNECTING..',CR)
+	--OPEN CONNECTION
+	MSG_CONNECT('S3:', status)
+	WRITE(' CONNECT status= ',status,CR)
+	loop1 = TRUE
+	--connectted or not 
+	IF status = 0 THEN
+		WRITE('Opening File...',CR)
+		OPEN FILE dataFile ('RW','S3:')
+		fileIO = IO_STATUS(dataFile)
+		WRITE('File_IO_status=',fileIO,CR)
+		--send msg to client
+		msgStr = 'Hello, Py Client!'
+		WRITE dataFile(msgStr)
+		WRITE('Wrote: ',msgStr,CR)
+		WRITE('Waiting to read from client...',CR) 
+		--FILE OPEN is success OR NOT
+		IF fileIO = 0 THEN
+			WHILE loop1 = TRUE DO
+				--reading from client
+				BYTES_AHEAD( dataFile, btyeAvailabl,status)
+				--WRITE('>>>status',status,CR)
+					IF (NOT UNINIT (btyeAvailabl)) THEN
+						IF (btyeAvailabl >= 1) THEN
+							WRITE('Available bytes: ',btyeAvailabl,'_bytes',CR)
+							--WRITE('status',status,CR)
+							WRITE('READING...',CR)
+							READ dataFile (msgStr1::btyeAvailabl)
+							fileIO = IO_STATUS(dataFile)
+							--WRITE('Read status: ',fileIO,CR)
+							WRITE('Read: ',msgStr1,CR)
+						ELSE
+							CLOSE FILE dataFile
+							WRITE('DISCONNECTING...',CR)
+							MSG_DISCO('S3:',status)
+							--OPEN CONNECTION
+							MSG_CONNECT('S3:', status)
+							IF status = 0 THEN
+								OPEN FILE dataFile ('RW','S3:')
+								WRITE dataFile(msgStr)
+							ENDIF
+						ENDIF
+					ENDIF		
+				DELAY 200
+				ENDWHILE
+			ELSE
+				WRITE('Error opening file',CR)
+				loop1 = FALSE
+				WRITE('Closed file.',CR)
+				CLOSE FILE dataFile
+			ENDIF    
+		ENDIF
+END SM_Server

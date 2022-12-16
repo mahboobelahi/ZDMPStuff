@@ -1,0 +1,88 @@
+PROGRAM Test_Vis_cmd
+
+%STACKSIZE = 4000
+%ENVIRONMENT REGOPE
+%ENVIRONMENT CVIS
+%ALPHABETIZE
+%COMMENT = 'IRVision CAL Built-IN'
+%NOLOCKGROUP
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+
+
+---------------------------------------------------------------------------------------------------------------
+--DECLARACION DE VARIABLES
+CONST
+	CAMER_INDX =1
+	dir = 'MC:\pic.png'
+VAR
+	STATUS : INTEGER
+	visprocess : STRING[20]
+	int_value, i,v : INTEGER
+	real_value : REAL
+	r_flage : BOOLEAN
+---------------------------------------------------------------------------------------------------------------
+--Error Checking Rutine
+
+
+
+BEGIN
+	WRITE TPERROR(CHR(128)) 
+	--WRITE(CHR(137),CHR(128))
+	
+	
+	GET_TPE_PRM(1,3,int_value,real_value,visprocess,STATUS)
+	--V_RUN_FIND, snap an image and run the vision process
+	--MC:|
+	
+	V_SNAP_VIEW(visprocess,CAMER_INDX,4,STATUS)	
+	V_SAVE_IMREG(4,dir,STATUS)
+	IF STATUS = 0 THEN
+	POST_ERR(STATUS,'',0,0)
+	WRITE ('_V_SNAP_VIEW FAILED WITH ERROR CODE ', STATUS, CR)
+	ABORT
+	ENDIF
+	
+	
+	
+	V_RUN_FIND(visprocess,CAMER_INDX,STATUS)
+	 V_GET_VPARAM(visprocess,0,CAMER_INDX,1, STATUS)
+	-- success if status is zero
+	IF STATUS <> 0 THEN
+	WRITE ('V_RUN_FIND FAILED WITH ERROR CODE ', STATUS, CR)
+	ABORT
+	ENDIF
+	-- V_GET_OFFSET, get the first offset from the run_find command
+	-- put the offset into VR[1]
+	-- call V_GET_OFFSET multiple times to get offsets from multiple parts
+	--V_GET_VPARAM(visprocess,0,CAMER_INDX,1, STATUS)
+		-- success if status is zero
+	IF STATUS <> 0 THEN
+		POST_ERR(STATUS,'',0,0)
+		WRITE ('V_RUN_FIND FAILED WITH ERROR CODE ', STATUS, CR)
+		ABORT
+	ENDIF
+	GET_REG(1,r_flage,int_value,real_value ,STATUS)
+	int_value = TRUNC(real_value) 
+	IF STATUS = 0 THEN
+	WRITE (r_flage,int_value,real_value, STATUS, CR)
+	--ABORT
+	ENDIF
+	
+	FOR i=1 TO int_value DO
+		V_GET_OFFSET(visprocess, 2, STATUS)
+		VREG_OFFSET(2,i+6,status)
+		WRITE(i,STATUS,CR)
+		-- success if status is zero
+		IF STATUS <> 0 THEN
+		WRITE ('V_GET_OFFSET FAILED WITH ERROR CODE ', STATUS, CR)
+		ABORT
+		ENDIF
+		DELAY 2000
+	ENDFOR
+	-- Get all the offset values from VR[1] so they can be put into a PR
+	
+	
+END Test_Vis_cmd
+
+
+

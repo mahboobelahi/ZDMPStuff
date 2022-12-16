@@ -1,0 +1,91 @@
+PROGRAM z_take_PIC
+
+%STACKSIZE = 4000
+%ENVIRONMENT REGOPE
+%ENVIRONMENT CVIS
+%ENVIRONMENT  STRNG
+%ALPHABETIZE
+%COMMENT = 'send_PIC_2_zRoki'
+%NOLOCKGROUP
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+
+---------------------------------------------------------------------------------------------------------------
+--DECLARACION DE VARIABLES
+CONST
+	CAMER_INDX =1
+	VISPROCESS = 'FIND_CYL'
+	PROG_NAME = 'z_TCPClient3'
+	VIS_REG = 1 --used vision register
+	SUCCESS = 0
+	--Used Numerical Registers
+	NUM_OBJ = 195 --stores number of detected objects 
+	--used in BG logic
+	SNAP_REG = 199 
+	FTP_Client = 197
+	
+
+VAR
+	STATUS : INTEGER
+	r_flage : BOOLEAN
+	obj_count, i,v,prog_index : INTEGER
+	real_value : REAL
+---------------------------------------------------------------------------------------------------------
+--Error Checking Rutine
+ROUTINE cmd_stat (rec_stat: INTEGER; cmd: STRING)
+BEGIN
+ IF (rec_stat <> SUCCESS) THEN   -- if rec_stat is not SUCCESS
+     -- then post the error
+     --Clear and home user screen.
+      WRITE(CHR(128))
+      WRITE(CHR(137))
+      --Force the user screen.
+      FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+      WRITE ('Aborting! '+cmd+' command failed!',CR)
+     -- ABORT
+ ENDIF
+END cmd_stat
+
+---------------------------------------------------------------------------------------------------------
+BEGIN
+	--WRITE TPERROR(CHR(128)) 
+	--WRITE(CHR(137),CHR(128))
+	
+	--V_SNAP buily-in can be used.
+	--Robot controller must be configured to have 1 por more then 1 Image Registors
+	--I am not using due to memory issue 	
+	--For more info consult KAREL Programming Reference's "V " command section  
+	--Run Vision Process
+	re_SNAP::
+	V_RUN_FIND(VISPROCESS, CAMER_INDX, STATUS)
+	IF STATUS <> SUCCESS THEN
+		cmd_stat(STATUS,'V_RUN_FIND')
+	ELSE
+		
+		--GET  number of find objects
+		--a real number will be returned
+		--save find objects count in a numerical register
+		--0:number of find objects
+		V_GET_VPARAM(VISPROCESS, 0, CAMER_INDX, NUM_OBJ, STATUS)
+		cmd_stat(STATUS,'V_GET_VPARAM')
+		-- get find object count
+		GET_REG(NUM_OBJ, r_flage, obj_count, real_value , STATUS)
+		cmd_stat(STATUS,'GET_REG')
+		--convert to integer
+		obj_count = TRUNC(real_value) 
+		cmd_stat(STATUS,'TRUNC')
+		SET_INT_REG(SNAP_REG,0,STATUS)
+		IF obj_count <> 0 THEN
+			
+			--SET_INT_REG(FTP_Client, 1, status)
+			CALL_PROG(PROG_NAME, prog_index)
+		ELSE 
+			WRITE('Object Counte: ',obj_count,CR)
+			DELAY 6000
+			GOTO re_SNAP
+		ENDIF
+	ENDIF
+		
+END z_take_PIC
+
+
+

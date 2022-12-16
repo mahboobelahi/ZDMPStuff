@@ -1,0 +1,65 @@
+PROGRAM Mov_HTTP
+----------------------------------------------------
+-- Creation date: 2021.10.21
+-- Created by: 
+----------------------------------------------------
+-- Version: 0.0.0.0 - 00
+----------------------------------------------------
+-- Function: 
+----------------------------------------------------
+-- Last modified: 2021.10.21
+-- Last modified by:                              
+----------------------------------------------------
+%ENVIRONMENT REGOPE
+%COMMENT = 'GET POS_HTPP'
+%NOLOCKGROUP
+%NOABORT=ERROR+COMMAND
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ALPHABETIZE
+%INCLUDE KLEVKEYS
+%INCLUDE KLEVKMSK
+%INCLUDE KLEVCCDF
+%INCLUDE KLIOUOP
+%INCLUDE KLIOTYPS
+
+
+VAR
+    id: STRING[2]
+    x:  STRING[2]
+    y:  STRING[2]
+    z:  STRING[2]
+    w:  STRING[2]
+    p:  STRING[2]
+    r:  STRING[2]
+    temp_pos: xyzwpr
+    fFileHandle : FILE
+    chOutFile: STRING[20]
+    ret_code,status,prog_index: INTEGER
+----------------------------------------------------
+-- BEGIN MyProgram                             
+----------------------------------------------------
+BEGIN
+    -- clear the TPERROR screen
+	--FORCE_SPMENU(TP_PANEL,SPI_TPUSER,1)
+	WRITE(CHR(137),CHR(128))
+	WRITE TPERROR(CHR(128))
+    WRITE('Waiting for HTTP Req...',CR)
+    IF UNINIT(chOutFile) THEN
+        chOutFile='TD:RESPONSE.HTM'
+        WRITE('[X] INSIDE',CR)
+    ENDIF
+    id = CNV_STR_REAL(id)
+    temp_pos.x = CNV_STR_REAL(x)
+    temp_pos.y = CNV_STR_REAL(y)
+    temp_pos.z = CNV_STR_REAL(z)
+    temp_pos.w = CNV_STR_REAL(w)
+    temp_pos.p = CNV_STR_REAL(p)
+    temp_pos.r = CNV_STR_REAL(r)
+    SET_POS_REG(id,temp_pos,status)
+    CALL_PROG('HTTP_test', prog_index)
+    
+    OPEN FILE fFileHandle ('RW', chOutFile) 
+    WRITE fFileHandle ('OK',CR)
+    wait for DOUT[101]
+    CLOSE FILE fFileHandle 
+END Mov_HTTP

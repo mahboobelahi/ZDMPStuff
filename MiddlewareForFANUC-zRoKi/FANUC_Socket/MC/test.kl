@@ -1,0 +1,83 @@
+PROGRAM MyProgram
+----------------------------------------------------
+-- Creation date: 2021.10.21
+-- Created by: 
+----------------------------------------------------
+-- Version: 0.0.0.0 - 00
+----------------------------------------------------
+-- Function: 
+----------------------------------------------------
+-- Last modified: 2021.10.21
+-- Last modified by:                              
+----------------------------------------------------
+%COMMENT = '0.0.0.0 - 00'
+%STACKSIZE = 4000
+%NOLOCKGROUP
+%NOABORT=ERROR+COMMAND
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ALPHABETIZE
+%ENVIRONMENT UIF
+%ENVIRONMENT SYSDEF
+%ENVIRONMENT MEMO
+%ENVIRONMENT KCLOP
+%ENVIRONMENT BYNAM
+%ENVIRONMENT FDEV
+%ENVIRONMENT FLBT
+%INCLUDE KLEVKEYS
+%INCLUDE KLEVKMSK
+%INCLUDE KLEVCCDF
+%INCLUDE KLIOUOP
+%INCLUDE KLIOTYPS
+
+
+
+
+
+--CONST
+--TYPE
+VAR
+    fFileHandle : FILE
+    chOutFile: STRING[20]
+    -- name1: STRING[20]
+    -- name2: STRING[20]
+    -- ret_code: INTEGER
+----------------------------------------------------
+-- BEGIN MyProgram     \V8.30-1                    
+----------------------------------------------------
+BEGIN
+	--Clear and home user screen.
+	WRITE(CHR(128))
+	WRITE(CHR(137))
+	-- clear the TPERROR screen
+	--WRITE TPERROR(CHR(128))
+    WRITE('Waiting for HTTP Req...',CR)
+    IF UNINIT(chOutFile) THEN
+        chOutFile='TD:RESPONSE.HTM'
+        WRITE('[X] INSIDE',CR)
+    ENDIF 
+    OPEN FILE fFileHandle ('RW', chOutFile)
+         WRITE fFileHandle ('chAction,')
+     WRITE fFileHandle ('chAction')
+     WRITE fFileHandle (CR)
+     WRITE fFileHandle ('iSelection,')
+      WRITE fFileHandle ('Selection')
+         WRITE fFileHandle (CR)
+  -- Close file for return to browser client
+     CLOSE FILE fFileHandle    
+    -- IF UNINIT(name1) THEN
+    --     name1='-----'
+    --     WRITE(name1,CR) 
+    --     ABORT
+    -- ENDIF
+    
+    -- IF UNINIT(name2) THEN 
+    --     name2='----' 
+    --     WRITE(name2,CR)
+    --     ABORT
+    -- ENDIF
+    -- WRITE(name1)
+    -- WRITE(name2,CR)
+    -- WRITE('Ending...',CR)
+    -- ret_code = 200
+
+END MyProgram

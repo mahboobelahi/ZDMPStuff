@@ -1,0 +1,103 @@
+PROGRAM Mov_HTTP
+----------------------------------------------------
+-- Creation date: 2021.11.01
+-- Created by: ME
+----------------------------------------------------
+-- Version: v1
+----------------------------------------------------
+-- Function: 
+----------------------------------------------------
+-- Last modified: 2021.11.01
+-- Last modified by: ME                              
+------------
+----------------------------------------
+%NOLOCKGROUP
+%ENVIRONMENT  REGOPE
+%TPMOTION 
+%ENVIRONMENT MOTN
+%ENVIRONMENT MULTI
+%ENVIRONMENT  STRNG
+%COMMENT = 'GET POS_HTPP'
+%NOABORT=ERROR+COMMAND
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ALPHABETIZE
+%INCLUDE KLEVKEYS
+%INCLUDE KLEVKMSK
+%INCLUDE KLEVCCDF
+%INCLUDE KLIOUOP
+%INCLUDE KLIOTYPS
+
+
+VAR
+    id,XX,YY,ZZ,WW,PP,RR: STRING[10]
+    
+    con: CONFIG
+    reg_ID,x,y,z,w,p,r:  REAL
+    temp_pos: XYZWPR
+    fFileHandle : FILE
+    chOutFile: STRING[20]
+    ret_code,status,prog_index: INTEGER
+----------------------------------------------------
+-- BEGIN MyProgram                             
+----------------------------------------------------
+BEGIN
+    -- clear the TPERROR screen
+	--FORCE_SPMENU(TP_PANEL,SPI_TPUSER,1)
+	WRITE(CHR(137),CHR(128))
+	WRITE TPERROR(CHR(128))
+    WRITE('Waiting for HTTP Req...',CR)
+    --DELAY 2000
+    IF UNINIT(chOutFile) THEN
+        chOutFile='TD:RESPONSE.HTM'
+        WRITE('[X] INSIDE',CR)
+    ENDIF
+    WRITE(id,XX,YY,ZZ,WW,PP,RR,CR)
+   
+	CNV_STR_REAL(id,reg_ID)
+	CNV_STR_REAL(XX,x)
+	CNV_STR_REAL(YY,y)
+	CNV_STR_REAL(ZZ,z)
+	CNV_STR_REAL(WW,w)
+	CNV_STR_REAL(PP,p)
+	CNV_STR_REAL(RR,r)
+-- 	WRITE(reg_ID,x,y,z,w,p,r,CR)
+	-- temp_pos.x = x--CNV_STR_REAL(x,XX)
+	-- temp_pos.y = y--CNV_STR_REAL(y,YY)
+	-- temp_pos.z = z--CNV_STR_REAL(z,ZZ)
+	-- temp_pos.w = w--CNV_STR_REAL(w,WW)
+	-- temp_pos.p = p--CNV_STR_REAL(p,PP)
+	-- temp_pos.r = r--CNV_STR_REAL(r,RR)
+ 	CNV_STR_CONF('nut',con,status)
+ 	temp_pos = POS(x,y,z,w,p,r,con)--POS(XX,YY,ZZ,WW,PP,RR,con)
+   WRITE('--->',CR)
+   WRITE(temp_pos,CR)
+   
+    
+   -- WRITE('----',status,CR)
+    IF status =0 THEN
+        --WRITE('Openign Foile...',CR)
+        
+        OPEN FILE fFileHandle ('RW', chOutFile) 
+        WRITE fFileHandle ('OK',CR)
+        WRITE('L----',CR)
+        --LOCK_GROUP(1,status)
+        SET_POS_REG(TRUNC(reg_ID),temp_pos,status,1)
+        IF status =0 THEN
+            SET_INT_REG(200, 1, status)
+            WRITE('REG----',status,CR)
+        ENDIF
+        --WRITE('L----',status,CR)
+        --CALL_PROG('HTTP_TEST', prog_index)
+        --wait for DOUT[101]
+        WRITE('Closing File...',CR)
+        --UNLOCK_GROUP(1,status)
+        CLOSE FILE fFileHandle 
+    ENDIF
+    -- CALL_PROG('HTTP_test', prog_index)
+    -- WRITE('Openign Foile...',CR)
+    -- OPEN FILE fFileHandle ('RW', chOutFile) 
+    -- -- WRITE fFileHandle ('OK',CR)
+    -- -- wait for DOUT[101]
+    -- WRITE('Closing File...',CR)
+    -- CLOSE FILE fFileHandle 
+END Mov_HTTP

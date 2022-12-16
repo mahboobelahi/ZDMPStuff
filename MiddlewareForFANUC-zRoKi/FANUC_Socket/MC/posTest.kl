@@ -1,0 +1,146 @@
+PROGRAM TCPserver3 
+----------------------------------------------------
+-- Creation date: 2021.10.29
+-- Created by: 
+----------------------------------------------------
+-- Version: 0.0.0.0 - 00
+----------------------------------------------------
+-- Function: 
+----------------------------------------------------
+-- Last modified: 2021.10.29
+-- Last modified by:                              
+----------------------------------------------------
+%STACKSIZE = 4000
+%ALPHABETIZE
+%COMMENT = 'Send Position to Robot'
+%NOLOCKGROUP
+%NOPAUSE=ERROR+COMMAND+TPENABLE
+%ENVIRONMENT uif
+%ENVIRONMENT sysdef
+%ENVIRONMENT memo
+%ENVIRONMENT kclop
+%ENVIRONMENT bynam
+%ENVIRONMENT fdev
+%ENVIRONMENT flbt
+%ENVIRONMENT REGOPE
+%INCLUDE klevccdf
+%INCLUDE klevkeys
+%INCLUDE klevkmsk
+CONST
+    SUCCESS=0
+VAR
+    file_var     : FILE
+    prmPosregId : INTEGER
+    --prmLogFile  : STRING[16]
+    --dataType    : INTEGER
+    --intVal      : INTEGER
+    --realVal     : REAL
+    --strVal      : STRING[1]
+    posreg      : XYZWPR
+    --num_axes,pos_type : INTEGER
+    fileIO : INTEGER
+    POS_Str1 : STRING[128]
+    --POS_Str1 : STRING[128]
+    status : INTEGER
+    btyeAvailabl : INTEGER
+    --loop1 : BOOLEAN
+    --indx_pos : INTEGER
+
+----------------------------------------------------
+-- BEGIN Routines                             
+----------------------------------------------------
+ROUTINE cmd_stat (rec_stat: INTEGER; cmd: STRING)
+BEGIN
+ IF (rec_stat <> SUCCESS) THEN   -- if rec_stat is not SUCCESS
+     -- then post the error
+     --Clear and home user screen.
+      WRITE(CHR(137),CHR(128))
+    --   WRITE(CHR(128))
+    --   WRITE(CHR(137))
+      --Force the user screen.
+      FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+      WRITE ('NOT Aborting! '+cmd+' command failed!',CR)
+      --ABORT
+ ENDIF
+END cmd_stat
+----------------------------------------------------
+-- BEGIN MyProgram                             
+----------------------------------------------------
+BEGIN
+    -- clear the TPERROR screen
+	--FORCE_SPMENU(TP_PANEL,SPI_TPUSER,1)
+	WRITE(CHR(137),CHR(128))
+	WRITE TPERROR(CHR(128))
+    --Disconnecting any previous connections
+    WRITE('1-DISCONNECTING...',CR)
+	MSG_DISCO('S3:',status)
+	WRITE('DONE .',status,CR)
+    --setting file attributes
+	SET_FILE_ATR(file_var, ATR_READAHD)--ATR_IA
+	--set the server port before doing a conmnect
+	SET_VAR(btyeAvailabl, '*SYSTEM*', '$HOSTS_CFG[3].$SERVER_PORT', 1162, status)
+    
+    -- dismount previously opened/used Server file
+    DISMOUNT_DEV('S3:',status)
+    WRITE ('Dis-Mount Status = ',status,CR)
+    MOUNT_DEV('S3:',status)
+    WRITE ('Mount Status = ',status,CR)
+    IF status = SUCCESS THEN
+        -- Connect the tag
+        WRITE ('Connecting ...',CR)
+        MSG_CONNECT ('S3:',status)
+        WRITE ('Connect Status = ',status,CR)
+        IF status <> SUCCESS THEN
+            MSG_DISCO('S3:',status)
+            WRITE ('Connecting...',CR)
+            wait_4_Conn::
+            MSG_CONNECT('S3:',status)
+            WRITE ('Connect Status = ',status,CR)
+            --cmd_stat(status,'MSG_CONNECT')
+        ENDIF
+    ENDIF   
+    -- If connected to client open file and
+    -- start data transmission
+    IF status = SUCCESS THEN
+        -- OPEN S3:
+        WRITE ('Opening',CR)
+        OPEN FILE file_var ('RW','S3:')
+        fileIO = IO_STATUS(file_var)
+	    WRITE('File_IO_status=',fileIO,CR)
+        --cmd_stat(fileIO,'MSG_CONNECT')
+        --FILE OPEN is success OR NOT
+        IF fileIO = 0 THEN
+            BYTES_AHEAD( file_var, btyeAvailabl,status)
+            IF (NOT UNINIT (btyeAvailabl)) THEN
+                IF (btyeAvailabl >= 1) THEN
+                    WRITE('Available bytes: ',btyeAvailabl,'_bytes',CR)
+                    --WRITE('status',status,CR)
+                    WRITE('READING...',CR)
+                    READ file_var (POS_Str1::btyeAvailabl)
+                    --fileIO = IO_STATUS(file_var)
+                    --WRITE('Read status: ',fileIO,CR)
+                    WRITE('Read: ',POS_Str1,CR)
+                    -- DELAY 5000
+                    -- GOTO clos_conn
+                ENDIF
+            ENDIF
+        ENDIF
+    ENDIF
+    -- if file operation not a success close file and Disconnect server    
+    IF fileIO <>  SUCCESS THEN
+        --FORCE_SPMENU(TP_PANEL , SPI_TPUSER , 1)
+        --WRITE ('File operation is not a success...', CR)
+        --cmd_stat(fileIO,'MSG_CONNECT')
+        --clos_conn::
+        WRITE ('Disconnecting Server.', CR)
+        WRITE ('Closing Dismounting File...', CR)
+        --Not_Success::
+        
+        DISMOUNT_DEV('S3:',status)
+        CLOSE FILE file_var
+        WRITE('Closed file.', fileIO,CR) --IO_STATUS(file_var)
+        MSG_DISCO('S3:',status)
+        GOTO wait_4_Conn
+    ENDIF
+
+END TCPserver3
